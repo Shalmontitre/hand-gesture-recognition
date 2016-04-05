@@ -3,10 +3,11 @@
 #include <highgui.h>
 #define pii pair<int,int>
 #define PI 3.14
+
 using namespace cv; 
 using namespace std;
 char key;
-Mat src,bkgrnd,rawsrc, src_gray,fore;
+Mat src,bkgrnd,rawsrc, src_gray,fore,HSVmat;
 int thresh = 100;
 int max_thresh = 255;
 RNG rng(12345);
@@ -14,6 +15,7 @@ void thresh_callback(int, void* );
 void contour(Mat);
 void source();
 void Hull(int, void*,Mat );
+void HSV(Mat);
 //vector<int> HistR(256, 0 ),HistB(256 ,0),HistG(256,0);
 
 
@@ -28,6 +30,7 @@ int main(int argc, char** argv)
 		cap.read(rawsrc); //Create image frames from capture
 		imshow("Camera_Output", rawsrc);   //Show image frames on created window
 		key = cvWaitKey(10);     //Capture Keyboard stroke
+		HSV(rawsrc);
 		source();
 		if (char(key) == 27){
 			break;      //If you hit ESC key loop will break.
@@ -42,10 +45,26 @@ int main(int argc, char** argv)
 	return 0;
 }
 //int r1,r2,c1,c2;
+void HSV(Mat src){
+	Mat hsv_image,hsv_mask;
+	Scalar  hsv_min = Scalar(0, 0, 0, 0);                                   // HSV filter
+	Scalar  hsv_max = Scalar(30, 255, 255, 0);
+   cvtColor(src, hsv_image, CV_BGR2HSV);
+	inRange (hsv_image, hsv_min, hsv_max, HSVmat);
+   inRange (hsv_image, Scalar(150,0,0,0), Scalar(180, 255,255,0 ), hsv_mask);
+	add(hsv_mask, HSVmat, HSVmat);
+	int dilation_size =1;
+	dilate(HSVmat,HSVmat,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
+			 Point(dilation_size,dilation_size)));
+
+  // dilate(thresho,threshold_output,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
+	//		 Point(dilation_size,dilation_size)));
+}
+
 void source(){                                                                 // Function which finds foreground
 //	Mat temp= bkgrnd.clone();
 	int r1=bkgrnd.rows-1,r2=0,c1=bkgrnd.cols-1,c2=0;
-	fore = Mat::zeros(rawsrc.cols,rawsrc.rows,rawsrc.type());
+	fore = Mat::zeros(rawsrc.rows,rawsrc.cols,rawsrc.type());
 	Mat fore_gray;
 	Vec3b p;p[0]=p[1]=p[2]=200;
 	for(int i =0; i< bkgrnd.rows; i++)
@@ -57,10 +76,21 @@ void source(){                                                                 /
 				c1 = min(c1,j);
 				r2 = max(r2,i);
 				c2 = max(c2,j);*/
+			//	cout<<"no"<<endl;
+				if(HSVmat.at<uchar>(i,j))
 				fore.at<Vec3b>(Point(j,i)) = (Vec3b)p;
+			//	cout<<"yes"<<endl;
 				}
 		}
-	imshow("Fore", fore);
+//	imshow("Fore", fore);
+	int dilation_size =1;
+	blur( fore, fore, Size(3,3) );
+	dilate(fore,fore,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
+			 Point(dilation_size,dilation_size)));
+
+   dilate(fore,fore,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
+		 Point(dilation_size,dilation_size)));
+	imshow("fore",fore);
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 //	cout<<"Not Aborted"<<endl;
@@ -93,13 +123,13 @@ void source(){                                                                 /
  //  if(c2-c1>=30&&r2-r1>=30)
 
 	Mat drawing = Mat::zeros( rawsrc.size(), CV_8UC3 );
- for( int i = 0; i< contours.size(); i++) {
+// for( int i = 0; i< contours.size(); i++) {
 	Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-	drawContours( drawing, contours, i, color, 1, 8, vector<Vec4i>(), 0, Point() );
- }
+	drawContours( drawing, contours, k, color, 1, 8, vector<Vec4i>(), 0, Point() );
+// }
 		contour(rawsrc(rowr,colr));
-	namedWindow("The source",WINDOW_AUTOSIZE);
-	 imshow("The source", rawsrc(rowr,colr));
+//	namedWindow("The source",WINDOW_AUTOSIZE);
+//	 imshow("The source", rawsrc(rowr,colr));
 	 imshow("The bigcontour", drawing);
 
 //	cout<<"Not aborted\n";
@@ -158,7 +188,7 @@ bool Condn(Point s, Point e, Point f ){
 
 void Hull(int, void*,Mat src )
 {  
-	cout<<"In Hull"<<endl;
+//	cout<<"In Hull"<<endl;
 	Mat src_copy = src.clone();
 	Mat threshold_output,hsv_image,hsv_mask;
 	vector<vector<Point> > contours;
@@ -170,9 +200,10 @@ void Hull(int, void*,Mat src )
 	inRange (hsv_image, hsv_min, hsv_max, threshold_output);
    inRange (hsv_image, Scalar(150,0,0,0), Scalar(180, 255,255,0 ), hsv_mask);
 	add(hsv_mask, threshold_output, threshold_output);
-	
-/*	int dilation_size = 1;
+	blur( threshold_output,threshold_output , Size(3,3) );
 
+	int dilation_size = 1;
+/*
    erode(threshold_output,threshold_output,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
 			 Point(dilation_size,dilation_size)));
 
@@ -189,10 +220,10 @@ void Hull(int, void*,Mat src )
 			 Point(dilation_size,dilation_size)));
 
    dilate(threshold_output,threshold_output,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
-			 Point(dilation_size,dilation_size)));
+			 Point(dilation_size,dilation_size)));*/
 
    dilate(threshold_output,threshold_output,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
-			 Point(dilation_size,dilation_size)));*/
+			 Point(dilation_size,dilation_size)));
 	
    /*erode(threshold_output,threshold_output,getStructuringElement(MORPH_RECT,Size(2*dilation_size+1,2*dilation_size+1),
 			 Point(dilation_size,dilation_size)));
@@ -205,7 +236,7 @@ void Hull(int, void*,Mat src )
 //   threshold( src_gray, threshold_output, thresh, 255, THRESH_BINARY );
  //  namedWindow("threshold aftr just hsv",WINDOW_AUTOSIZE);
 	
-	imshow("theshhold aftr just hsv", threshold_output);
+//	imshow("theshhold aftr just hsv", threshold_output);
 	/// Find contours
  //  cout<<"Not aborted"<<endl;
 	vector<int> HistR(256, 0 ),HistB(256 ,0),HistG(256,0);
@@ -216,7 +247,7 @@ void Hull(int, void*,Mat src )
 		for (int j = 0; j < src.cols; ++j)
 		{
 	        if(threshold_output.at<uchar>(i,j)){//&&i>r1&&j>c1&&j<c2&&i<r2){                        // change for ROI
-				   HistR[ p[j][2]] += 1;
+			   HistR[ p[j][2]] += 1;
 					HistB[p[j][0] ] += 1;
 					HistG[p[j][1]] += 1;                              // Calculating Histogram for Points inside hbv ilter
 		        Modified.at<Vec3b>(Point(j,i)) = (Vec3b)p[j];          // This is giving Segfault Not working
@@ -248,7 +279,8 @@ void Hull(int, void*,Mat src )
 			max = contours[i].size();
 		}
 	}
-	if(k==-1){cout<<"error"<<endl;return ;}
+	if(k==-1){//cout<<"error"<<endl;
+		return ;}
 //	cout<<"Mid2"<<endl;
 	/// Find the convex hull object for each contour
 	//vector<vector<Point> >hull( contours.size() );
@@ -308,7 +340,7 @@ void Hull(int, void*,Mat src )
 	}
 
 	/// Show in a window
-	namedWindow( "Hull demo", CV_WINDOW_AUTOSIZE );
+//	namedWindow( "Hull demo", CV_WINDOW_AUTOSIZE );
 	imshow( "Hull demo", src_copy );
 	//cout<<"outta hull"<<endl;
 }
