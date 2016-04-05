@@ -107,10 +107,10 @@ void source(){                                                                 /
 //	cout<<"Not aborted1"<<" k is "<<k<<endl;
 	for(vector<Point>:: iterator it =contours[k].begin(); it<contours[k].end();it++){
 //		cout<<it->x<<it->y<<endl;
-		r1 = min(it->x,r1);
-		r2 = max(it->x,r2);
-		c1 = min(it->y,c1);
-		c2 = max(it->y,c2);
+		r1 = min(it->y,r1);
+		r2 = max(it->y,r2);
+		c1 = min(it->x,c1);
+		c2 = max(it->x,c2);
 	}
   // cout <<"No abort\n"<<endl;
 	if(r1>r2|| c1>c2|| r1<0||c1<0)return;
